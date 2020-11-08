@@ -10,28 +10,27 @@ Why ?
 Well there are multiple reasons : 
 
 - Because we can. The project is opensource and the source code is freely available here : [https://github.com/python/cpython](https://github.com/python/cpython)
-- I strongly believe that we, as developpers, can learn a lot by studying good and clean code. And i think we can safely assume that CPython's code, which is used practicly everywhere meet this crietria.
-- I also think that studying python internals can make us better python programmers, for example ever wondered why changing sys.stdout seems to have no effect on subprocesses ? Well at the end of this article you will know why.
+- I strongly believe that we, as developpers, can learn a lot by studying good and clean code. And I think we can safely assume that CPython's code, which is used practicaly everywhere, meet this crietria.
+- I also think that studying python internals can make us better python programmers, for example ever wondered why changing _sys.stdout_ seems to have no effect on subprocesses ? Well at the end of this article You will know why.
 
 I will try to regulary realease articles  on random functions/modules/data strucutres/algorithms.
 
-Starting today i don't really have a plan or a timeline of future articles, i'll just start with _subprocess.Popen_ and go from there.
+Starting today I don't really have a plan or a timeline for future articles, I'll just start with _subprocess.Popen_ and go from there.
 
-I ll try to link PEP, articles, disscussions whenever i can.
+I'll try to link PEPs, articles and disscussions whenever I can.
 
-DISCLAIMER : I am not a Python Core Developper, therefore a lot of claims that i'll make here may be wrong, especially if they're not backed by any evidence.
+DISCLAIMER : I am not a Python Core Developper, therefore a lot of claims that I'll make here may be wrong, especially if they're not backed by any evidence.
 
 With that being said, let's read some code !
 
 
 ## Wait ... What the heck is CPython ? 
--------------------------------------
 
 _CPython_ is the official python implementation. You need to understand that there is a difference between python specification and a python implementation.
 
 A simple example can be the sorting function : 
 
-The python specification specify that a valid implementation should offer a "sorted" function which can take a list and sort it.
+The python specification specify that a valid implementation should offer a `sorted` function which can take a list and sort it.
 
 But as you may recall from your painfull algorithms course, there are multiple sorting algorithms, so which one are being used ? Well, as a lot of things, it depends on the implementation.
 
@@ -43,7 +42,6 @@ There are other python implementations like _PyPy_ (which use JIT compilation), 
 
 
 ## Getting the code
-------------------
 
 the first step is to get the cpython code. for that we gonna just clone the official repo on github : 
 
@@ -52,11 +50,10 @@ $ git clone https://github.com/python/cpython.git
 {% endhighlight %}
 
 ## Subprocess.Popen : The class
-------------------
 
-Please note that we won't really analyze ALL the code of Popen, there are way too many options and use cases to fit in this article.
+Please note that we won't really analyze ALL the code of _Popen_, there are way too many options and use cases to fit in this article.
 
-Instead we juste gonna try to understand what happen when you write this line of code : 
+Instead we juste gonna try to understand what happens when you execute this line of code : 
 
 {% highlight python %}
 p = subprocess.Popen(['ls', '-l']) 
@@ -72,7 +69,7 @@ $ find -name subprocess.py
 
 {% endhighlight %}
 
-we can safely assume that the module we're searching is `Lib/subprocess`.
+we can safely assume that the module we're searching for is `Lib/subprocess`.
 
 By searching for `Popen` in the file we find a class : 
 
@@ -105,7 +102,7 @@ a = [4, 5, 6] # we affect a new list to a
 {% endhighlight %}
 
 
-in the second line we no longer have a reference to the list `[1, 2, 3]` which mean that the garbage collector may delete it (or not) any time.
+In the second line we no longer have a reference to the list `[1, 2, 3]`, which means that the garbage collector may delete it (or not) any time.
 
 my guess, is that if you run a command like this : 
 
@@ -113,12 +110,11 @@ my guess, is that if you run a command like this :
 subprocess.Popen(['my command'])
 {% endhighlight %}
 
-since you re not referencing the Popen object, it is a _garbage candidate_, and the gc may try to delete it before it run. Which is not the excepected behaviour since you except the command to run even if you don't care about what it'll return.
+since you're not referencing the Popen object, it is a _garbage candidate_, and the gc may try to delete it before it run. Which is not the excepected behaviour since you except the command to run even if you don't care about what it'll return.
 
-what surprises me tough is the fact that it's a class attribute, there is surely a reason behind it, but i'm not sure what.
+What surprises me tough is the fact that it's a class attribute, there is surely a reason behind it, but i'm not sure what.
 
 ### The `__init__` method
------------------------
 
 the first instruction in the init method is : 
 
@@ -126,9 +122,9 @@ the first instruction in the init method is :
 _cleanup()
 {% endhighlight %}
 
-from the comment it looks like the purpose of the function is to avoid zombi processes. one thing that i like about this function is how the autor of the except explictly explain why he passes when he catches a ValueError and why it's okay. I see a lot of developpers using the pattern try: except (some exception or just Exception) pass instead of treating the error proply. This can be very risky as it may hide a real error that you wish you saw before wasting 2 days trying to debug a random issue.
+from the comment it looks like the purpose of the function is to avoid zombie processes. one thing that i like about this function is how the autor of the except explictly explain why he passes when he catches a ValueError and why it's okay. I see a lot of developpers using the pattern `try: except (some exception or just Exception) pass` instead of treating the error proply. This can be very risky as it may hide a real error that you wish you saw before wasting 2 days trying to debug a random issue.
 
-after that we can see some basic parameters validation : like _is bufsize an integer_ ?
+After that we can see some basic parameters validation : like _is bufsize an integer_ ?
 
 This is also a very good habit to have, especialy in a dynamicaly typed language like Python. 
 
@@ -144,27 +140,27 @@ to_upper('ab') # ['A', 'B']
 
 As you can see altough it works, example 2 is clearly not what the user would expect.
 
-You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, i ll on the focus part.
+You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, I'll on the focus part.
 
 {% highlight python %}
-         (p2cread, p2cwrite,
-          c2pread, c2pwrite,
-          errread, errwrite) = self._get_handles(stdin, stdout, stderr)
+(p2cread, p2cwrite,
+c2pread, c2pwrite,
+errread, errwrite) = self._get_handles(stdin, stdout, stderr)
 {% endhighlight %}
 
-next we get the filedecriptors related to the optional arguments stdin/stdout/stderr.
+next we get the _file decriptors_ related to the optional arguments stdin/stdout/stderr.
 
-A file descriptor is an abstraction managed by the process, each filedescriptor points to a row in a system wide table called _Open file table_.
+A file descriptor is an abstraction managed by the process, each file descriptor points to an entry in a system wide table called _Open file table_.
 
-in python you can do : 
+In python you can do : 
 
 {% highlight python %}
 open("my file").fileno()
 {% endhighlight %}
 
-this will return the file descriptor.
+This will return the file descriptor.
 
-based on the comments and common sense it looks like, we will not always need 6 file descriptors, but only if we choose to communicate with the child process (which is not our case for our example).
+Based on the comments and common sense it looks like, we will not always need 6 file descriptors, but only if we choose to communicate with the child process (which is not our case for our example).
 
 In our example it looks like : `c2pwrite` will be the fd of the output of our script (1 if stdout) and `p2cread` the fd of the input of our script (0 if stdin).
 
@@ -196,7 +192,7 @@ else:
 	c2pwrite = stdout.fileno()
 
 {% endhighlight %}
-it does bug me how similar the stdin / stdout / stderr code is. I know if i had to write this code i will desperatly try to somehow refactore in one block, i'm not sure tough if it will be a good idea, refactoring is not always a good thing.
+it does bug me how similar the stdin / stdout / stderr code is. I know if I had to write this code I will desperatly try to somehow refactore it in one block, I'm not sure tough if it will be a good idea, refactoring is not always a good thing.
 
 {% highlight python %}
  # How long to resume waiting on a child after the first ^C.
@@ -205,16 +201,15 @@ it does bug me how similar the stdin / stdout / stderr code is. I know if i had 
  self._sigint_wait_secs = 0.25  # 1/xkcd221.getRandomNumber()
 
 {% endhighlight %}
-i found the comment funny, for refecence this the xkcd comic that it refers to : 
+I found the comment funny, for refecence this the xkcd comic that it refers to : 
 
-<div style="text-align:center"><img src="https://imgs.xkcd.com/comics/random_number.png" /></div>
+![xkcd comic](https://imgs.xkcd.com/comics/random_number.png)
 
-next we call the function : _execute_child (POSIX version in our case) : 
+next we call the function : `_execute_child` (POSIX version in our case) : 
 
-### `_execute_child`
-------------------
+### `_execute_child` function
 
-Again some basic parameter validating.
+Again some basic parameter validation.
 
 {% highlight python %}
 sys.audit("subprocess.Popen", executable, args, cwd, env) 
@@ -249,7 +244,7 @@ if the `_USE_POSIX_SPAWN` is true, python will try to use it to create the child
 
 according to : [https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html ](https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html)
 
-will not copy the data of the parent process, which can make the script start faster for larges processes.
+will not copy the data of the parent process, which can make the script start faster for larger processes.
 
 {% highlight python %} 
 
@@ -272,10 +267,10 @@ ldd (Ubuntu GLIBC 2.31-0ubuntu9.1) 2.31
 
 {% endhighlight %}
 
-If you're interessted you can read the disccusion (on the python bug tracker) which lead to trying to use `posix_span whenever` it s possible : [https://bugs.python.org/issue35537](https://bugs.python.org/issue35537)
+If you're interessted you can read the disccusion (on the python bug tracker) which lead to trying to use `posix_span whenever` : [https://bugs.python.org/issue35537](https://bugs.python.org/issue35537)
 
 
-### `_posix_spawn`
+### `_posix_spawn` function 
 
 {% highlight python %}
 if env is None:
@@ -287,23 +282,23 @@ looks like our child process will inherit all our defined env variables
 one interessting thing : 
 
 {% highlight python %}
-             for fd, fd2 in (
-                 (p2cread, 0),
-                 (c2pwrite, 1),
-                 (errwrite, 2),
-             ):
-                 if fd != -1:
-                     file_actions.append((os.POSIX_SPAWN_DUP2, fd, fd2))
+for fd, fd2 in (
+ (p2cread, 0),
+ (c2pwrite, 1),
+ (errwrite, 2),
+):
+ if fd != -1:
+     file_actions.append((os.POSIX_SPAWN_DUP2, fd, fd2))
 {% endhighlight%}
 
 we iterate over the fds (in/out/err) of our child process, which are -1 by default
-as you can see if they're different than -1, based on [https://linux.die.net/man/2/dup2](https://linux.die.net/man/2/dup2), will close fd2 (stand input/output), and copy the value of fd (our new fd) place of it.
+as you can see if they're different than -1, based on [https://linux.die.net/man/2/dup2](https://linux.die.net/man/2/dup2), will close fd2 (standard input/output), and copy the value of fd (our new fd) place of it.
 
-which mean in our case (-1) nothing happen ! so even if sys.stdout is different than 1, this won't affect children process, and this explain why contextredirect will not affect children output/error
+which mean in our case (-1) nothing happen ! so even if sys.stdout is different than 1, this won't affect children process, and this explain why _contextredirect_ will not affect children output/error
 
-### `os.posix_spawn`
+### `os.posix_spawn` function
 
-we open `os.py` (same folder), we put a `/f posix_spawn` : nada. there is no function is this module with this name, my guess is that the function added to the exported functions somehow, and that it may be defined in the c code.
+we open `os.py` (same folder), we do a `/f posix_spawn` : nada. There is no function in this module with this name, my guess is that the function added to the exported functions somehow, and that it may be defined in the c code.
 
 by doing a `grep -R 'posix_spawn'`, we seem to have a strong candidate here : 
 
@@ -315,7 +310,7 @@ Modules/clinic/posixmodule.c.h:os_posix_spawnp(PyObject *module, PyObject *const
 {% endhighlight %}
 i guess that our function is `'os_posix_spawnp'` : 
 
-info : the `PyObject` is a C wrapper aroud python objects, so each variable you declare in python, will be presented by a PyObject in C.
+Note : the `PyObject` is a C wrapper aroud python objects, so each variable you use in python, will be presented by a PyObject in C.
 
 we first see some initializations.
 
@@ -350,10 +345,10 @@ exit:
 
 source : [https://stackoverflow.com/a/245761](https://stackoverflow.com/a/245761)
 
-goto are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java (last time i checked))
+goto are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java, last time i checked)
 after multiple conditions we go here : `os_posix_spawnp_impl`
 
-### `os_posix_spawnp_impl`
+### `os_posix_spawnp_impl` function
 ------------------------
 
 `grep -R os_posix_spawnp_impl`, Modules/posixmodule.c looks like a strong candidate.
@@ -364,11 +359,11 @@ if you're intriged by this line :
 /*[clinic end generated code: output=7b9aaefe3031238d input=c1911043a22028da]*/
 {% endhighlight %}
 
-clinic is a boilerpate code generator for CPython, we may inspect it in futur articles.
+_clinic_ is a boilerpate code generator for CPython, we may inspect it in futur articles.
 
 ### `py_posix_spawn`
 -----------------
-as above, some checks and gotos.
+As above, some checks and gotos.
 
 then we call `posix_spawnp `
 
