@@ -43,7 +43,7 @@ There are other python implementations like _PyPy_ (which use JIT compilation), 
 
 ## Getting the code
 
-the first step is to get the cpython code. for that we gonna just clone the official repo on github : 
+the first step is to get the cpython code. For that we gonna just clone the official repo on github : 
 
 {% highlight bash %}
 $ git clone https://github.com/python/cpython.git
@@ -114,7 +114,16 @@ since you're not referencing the Popen object, it is a _garbage candidate_, and 
 
 What surprises me tough is the fact that it's a class attribute, there is surely a reason behind it, but i'm not sure what.
 
-### The `__init__` method
+After doing a `git blame`, we can see that it was actually an instance attribute before this commit [72e7761301febe026536e7a2a444269698dcf156](https://github.com/python/cpython/commit/72e7761301febe026536e7a2a444269698dcf156). Which refers to this issue : [issue12085](https://bugs.python.org/issue12085). 
+
+And the explanation is as follow : 
+
+> If subprocess.Popen is called with a keyword argument whose name is undefined or simply too many arguments, an instance of the Popen class is created but its \_\_init\_\_ method call fails due to the invalid argument list. (Immediately) afterwards, the new instance is destroyed and its \_\_del\_\_ method is called, which checks the \_child\_created field that is defined by \_\_init\_\_; but \_\_init\_\_ never got the chance to execute, so the field is not defined, and \_\_del\_\_ raises an AttributeError, which is written out to stderr.
+>
+> \- Oleg Oshmyan (chortos) [2011] 
+
+
+## The `__init__` method
 
 the first instruction in the init method is : 
 
@@ -140,7 +149,7 @@ to_upper('ab') # ['A', 'B']
 
 As you can see altough it works, example 2 is clearly not what the user would expect.
 
-You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, I'll on the focus part.
+You can also start to see that some code parts depends on the target plateforme (windows / POSIX), for the rest of this article, I'll focus on the POSIX part.
 
 {% highlight python %}
 (p2cread, p2cwrite,
@@ -207,7 +216,7 @@ I found the comment funny, for refecence this the xkcd comic that it refers to :
 
 next we call the function : `_execute_child` (POSIX version in our case) : 
 
-### `_execute_child` function
+## `_execute_child` function
 
 Again some basic parameter validation.
 
@@ -244,7 +253,7 @@ if the `_USE_POSIX_SPAWN` is true, python will try to use it to create the child
 
 according to : [https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html ](https://web.archive.org/web/20190922113430/https://www.oracle.com/technetwork/server-storage/solaris10/subprocess-136439.html)
 
-will not copy the data of the parent process, which can make the script start faster for larger processes.
+`posix_spawn` will not copy the data of the parent process, which can make the script start faster for larger processes.
 
 {% highlight python %} 
 
@@ -256,7 +265,7 @@ will not copy the data of the parent process, which can make the script start fa
 {% endhighlight %}
 that if you are on a linux plateform and the version of _glibc_ is greater than _2.24_ you ll use `posix_spanw()`.
 
-the 2.24 version of glibc has been released around 2016 so it's fair to assume that you have a recent linux distribution you ll also use `posix_spawn()`.
+the 2.24 version of glibc has been released around 2016 so it's fair to assume that if you have a recent linux distribution you ll also use `posix_spawn()`.
 
 If you want to check 
 
@@ -267,10 +276,10 @@ ldd (Ubuntu GLIBC 2.31-0ubuntu9.1) 2.31
 
 {% endhighlight %}
 
-If you're interessted you can read the disccusion (on the python bug tracker) which lead to trying to use `posix_span whenever` : [https://bugs.python.org/issue35537](https://bugs.python.org/issue35537)
+If you're interessted you can read the disccusion (on the python bug tracker) which lead to trying to use `posix_span` : [https://bugs.python.org/issue35537](https://bugs.python.org/issue35537)
 
 
-### `_posix_spawn` function 
+## `_posix_spawn` function 
 
 {% highlight python %}
 if env is None:
@@ -296,7 +305,7 @@ as you can see if they're different than -1, based on [https://linux.die.net/man
 
 which mean in our case (-1) nothing happen ! so even if sys.stdout is different than 1, this won't affect children process, and this explain why _contextredirect_ will not affect children output/error
 
-### `os.posix_spawn` function
+## `os.posix_spawn` function
 
 we open `os.py` (same folder), we do a `/f posix_spawn` : nada. There is no function in this module with this name, my guess is that the function added to the exported functions somehow, and that it may be defined in the c code.
 
@@ -308,7 +317,7 @@ Modules/clinic/posixmodule.c.h:os_posix_spawnp_impl(PyObject *module, path_t *pa
 Modules/clinic/posixmodule.c.h:os_posix_spawnp(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 
 {% endhighlight %}
-i guess that our function is `'os_posix_spawnp'` : 
+I guess that our function is `'os_posix_spawnp'` : 
 
 Note : the `PyObject` is a C wrapper aroud python objects, so each variable you use in python, will be presented by a PyObject in C.
 
@@ -345,10 +354,10 @@ exit:
 
 source : [https://stackoverflow.com/a/245761](https://stackoverflow.com/a/245761)
 
-goto are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java, last time i checked)
+gotos are apprently also appropriate for jumping out of nested loops (fun fact : this is the only accepted form of goto in java, which is called _label_)
 after multiple conditions we go here : `os_posix_spawnp_impl`
 
-### `os_posix_spawnp_impl` function
+## `os_posix_spawnp_impl` function
 ------------------------
 
 `grep -R os_posix_spawnp_impl`, Modules/posixmodule.c looks like a strong candidate.
@@ -361,41 +370,18 @@ if you're intriged by this line :
 
 _clinic_ is a boilerpate code generator for CPython, we may inspect it in futur articles.
 
-### `py_posix_spawn`
------------------
+## `py_posix_spawn` function
+-----------------------------
 As above, some checks and gotos.
 
-then we call `posix_spawnp `
+then we call `posix_spawn`
 
-by scrolling over the file we see this : 
+Which looks like our final step, since `posix_spawn` is a native function in c : [https://man7.org/linux/man-pages/man3/posix_spawn.3.html](https://man7.org/linux/man-pages/man3/posix_spawn.3.html)
 
-{% highlight python %}
- os.posix_spawnp
-     path: path_t
-         Path of executable file.
-     argv: object
-         Tuple or list of strings.
-     env: object
-         Dictionary of strings mapping to strings.
-     /
-     *
-     file_actions: object(c_default='NULL') = ()
-         A sequence of file action tuples.
-     setpgroup: object = NULL
-         The pgroup to use with the POSIX_SPAWN_SETPGROUP flag.
-     resetids: bool(accept={int}) = False
-         If the value is `True` the POSIX_SPAWN_RESETIDS will be activated.
-     setsid: bool(accept={int}) = False
-         If the value is `True` the POSIX_SPAWN_SETSID or POSIX_SPAWN_SETSID_NP will be activated.
-     setsigmask: object(c_default='NULL') = ()
-         The sigmask to use with the POSIX_SPAWN_SETSIGMASK flag.
-     setsigdef: object(c_default='NULL') = ()
-         The sigmask to use with the POSIX_SPAWN_SETSIGDEF flag.
-     scheduler: object = NULL
-         A tuple with the scheduler policy (optional) and parameters.
- 
-Execute the program specified by path in a new process.
-{% endhighlight %}
+## Conclusion
 
-it looks like our function `os.posix_spawnp =  os_posix_spawnp_impl`
+And that's it, as you can see, this is definetly not an exaustive analysis of subprocess code. We left a lot of code/conditions. Maybe we'll revisit them in later articles.
 
+Hope you learned a thing or two in python, cpython or even general developpement best practices.
+
+If you have any suggestion/request/comment feel free to contact me ! (more details here : [about page](http://ykarroum/about).

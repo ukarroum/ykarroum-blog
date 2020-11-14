@@ -3,27 +3,16 @@ layout: page
 title: About
 ---
 
-<p class="message">
-  Hey there! This page is included as an example. Feel free to customize it for your own use upon downloading. Carry on!
-</p>
+My name is Yassir Karroum, I am a software engineer at [FI-Makers](https://fi-makers.devoteam.com/), I'm currently a contractor at *BNP Paribas CIB*, in _Paris_.
 
-In the novel, *The Strange Case of Dr. Jeykll and Mr. Hyde*, Mr. Poole is Dr. Jekyll's virtuous and loyal butler. Similarly, Poole is an upstanding and effective butler that helps you build Jekyll themes. It's made by [@mdo](https://twitter.com/mdo).
+My day to day job involves a lot of Python (one of my favourite progamming languages).
 
-There are currently two themes built on Poole:
+In this blog, I'll post articles on various subjects.
 
-* [Hyde](http://hyde.getpoole.com)
-* [Lanyon](http://lanyon.getpoole.com)
+I also play a fair amount of league of legends (proudly hardstuck at silver/gold), you can catch me on euw : [black2N](https://euw.op.gg/summoner/userName=black2N).
 
-Learn more and contribute on [GitHub](https://github.com/poole).
+## Some links
 
-## Setup
-
-Some fun facts about the setup of this project include:
-
-* Built for [Jekyll](https://jekyllrb.com)
-* Developed on GitHub and hosted for free on [GitHub Pages](https://pages.github.com)
-* Coded with [Atom](https://atom.io)
-
-Have questions or suggestions? Feel free to [open an issue on GitHub](https://github.com/poole/issues/new) or [ask me on Twitter](https://twitter.com/mdo).
+* [Github](https://github.com/ukarroum)
 
 Thanks for reading!

@@ -1,7 +1,7 @@
 # Setup
 title:               YKarroum
 tagline:             'A blog about python, finance and other stuffs'
-description:         'A reserved <a href="https://jekyllrb.com" target="_blank">Jekyll</a> theme that places the utmost gravity on content with a hidden drawer. Made by <a href="https://twitter.com/mdo" target="_blank">@mdo</a>.'
+description:         '<img style="border-radius: 50%" src="/public/img/yassir_small.jpg" /> Just another random blog, where a software engineer talks about python, finance, developpement and other things.'
 url:                 http://ykarroum.com
 baseurl:             ''
 paginate:            5
