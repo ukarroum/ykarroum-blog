@@ -17,7 +17,7 @@ b = a + 5
 
 The file implementing them in python is more than 5000 code lines.
 
-Since the file contains roughly 116 functions, I'll probably skip some (most of ?) of the functions.
+Since the file contains roughly 116 functions/macros, I'll probably skip some (most of ?) of the functions.
  
 Without further ado, let's dive in the code !
 
@@ -29,9 +29,9 @@ Unfortunetly, we don't seem to have an `intobject.c` file. That's because the un
 
 The file we're interessted in is : `longobject.c`
 
-For the rest of this article, we'll revisit some of the functions/macros of this file in the order in which they appear.
+For the rest of this article, we'll revisit some of the most used operations/functions related to integer.
 
-### MEDIUM_VALUE(x)
+#### MEDIUM_VALUE(x)
 
 {% highlight c %}
 /* convert a PyLong of size 1, 0 or -1 to an sdigit */
@@ -73,7 +73,7 @@ struct _longobject {
 Im not sure why use an array of one element instead of just an integer `digit num`.
 
 
-### IS_SMALL_INT(ival)
+#### IS_SMALL_INT(ival)
 
 {% highlight c %}
 #define IS_SMALL_INT(ival) (-NSMALLNEGINTS <= (ival) && (ival) < NSMALLPOSINTS)
@@ -92,7 +92,7 @@ Pretty straightforward function.
 
 To undesrtand why those 2 magic numbers and and where the two macros are used, let's dive into the next function.
 	
-### static PyObject * get_small_int(sdigit ival)
+#### static PyObject * get_small_int(sdigit ival)
 {% highlight c %}
 static PyObject *
 get_small_int(sdigit ival)
@@ -127,29 +127,56 @@ Apparently flyweight integers are stored there.
 
 We also use `Py_INCREF` to increment the reference count of the returned integer, recall that reference counting is what is used by the CPython garbage collector to detect which objects to free (Well not just that, since reference counting alone doesn't resolve circular references).
 
-### maybe_small_long
+#### maybe_small_long
 
 Straitforward function, we check a given integer is small enough to fit into an sdigit, if it's the case we downcast it to an sdigit using the `MEDIUM_VALUE`. After downcasting we check if the integer is in the flyweight range _[-5, 257]_, if it's the case we decrement the referece counting (since we don't need two PyLong objects) and we return a reference on the already allocated number.
 
-### _PyLong_Negate
+### How are longs created
 
-### SIGCHECK
-
-Weird macro, i don't get what's the difference between 
+Longs are created using the function `PyLongObject * _PyLong_New(Py_ssize_t size)`, size here refer to the number of digit of the target long.
 
 {% highlight c %}
-do 
-{
-	instructions;
-	...
-} while(0)
+if (size > (Py_ssize_t)MAX_LONG_DIGITS) {
+	PyErr_SetString(PyExc_OverflowError,
+					"too many digits in integer");
+	return NULL;
+}
 {% endhighlight %}
 
-instead of simply
+Well, looks like we can't have an indefinely big integer, but how big can our integers be ? 
+
 {% highlight c %}
-instructions;
-...
+#define MAX_LONG_DIGITS \
+    ((PY_SSIZE_T_MAX - offsetof(PyLongObject, ob_digit))/sizeof(digit))
 {% endhighlight %}
 
-### long_normalize
+if you don't already know it, offsetof is basicaly an offset of the member (ob_digit) from the structure (PyLongObject), if you recall correctly, since our struture only contains `PyObject_VAR_HEAD` and 	`digit ob_digit`. so the offset is the memorry taken with VAR_HEAD.
+
+So a integer has a maximal size of roughly Py_SSIZE_T_MAx.
+
+According to this answer : [https://stackoverflow.com/a/42777910/14517936](https://stackoverflow.com/a/42777910/14517936) `Py_SSIZE_T_MAX = sys.maxsize`, which is according to the official documentation ( [https://docs.python.org/3/library/sys.html#sys.maxsize](https://docs.python.org/3/library/sys.html#sys.maxsize) ) equal to `2**31 - 1` on 32 bits machine or `2**63 - 1`.
+
+`2**63 - 1` is a huge number of digits.
+
+You can check this limit yourself by doing : 
+
+{% highlight python%}
+import sys
+10**sys.maxsize
+{% endhighlight %}
+
+If the size is fine, we allocate enough memory to store our integer : 
+
+{% highlight c %}
+result = PyObject_MALLOC(offsetof(PyLongObject, ob_digit) +
+						 size*sizeof(digit));
+if (!result) {
+	PyErr_NoMemory();
+	return NULL;
+}
+{% endhighlight %}
+
+As a good practice you should ALWAYS check that an allocation had correctly been pperformed (which may not me the case if you don't have enough memory for example).
+
+### Adding two integers
 
