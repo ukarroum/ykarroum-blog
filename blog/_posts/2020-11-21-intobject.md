@@ -29,7 +29,7 @@ Unfortunetly, we don't seem to have an `intobject.c` file. That's because the un
 
 The file we're interessted in is : `longobject.c`
 
-For the rest of this article, we'll revisit some of the most used operations/functions related to integer.
+For the rest of this article, we'll revisit some of the most used operations/functions related to integers.
 
 #### MEDIUM_VALUE(x)
 
@@ -180,3 +180,140 @@ As a good practice you should ALWAYS check that an allocation had correctly been
 
 ### Adding two integers
 
+{% highlight c %}
+
+static PyObject *
+long_add(PyLongObject *a, PyLongObject *b)
+{
+    PyLongObject *z;
+
+    CHECK_BINOP(a, b);
+
+    if (Py_ABS(Py_SIZE(a)) <= 1 && Py_ABS(Py_SIZE(b)) <= 1) {
+        return PyLong_FromLong(MEDIUM_VALUE(a) + MEDIUM_VALUE(b));
+    }
+    if (Py_SIZE(a) < 0) {
+        if (Py_SIZE(b) < 0) {
+            z = x_add(a, b);
+            if (z != NULL) {
+                /* x_add received at least one multiple-digit int,
+                   and thus z must be a multiple-digit int.
+                   That also means z is not an element of
+                   small_ints, so negating it in-place is safe. */
+                assert(Py_REFCNT(z) == 1);
+                Py_SET_SIZE(z, -(Py_SIZE(z)));
+            }
+        }
+        else
+            z = x_sub(b, a);
+    }
+    else {
+        if (Py_SIZE(b) < 0)
+            z = x_sub(a, b);
+        else
+            z = x_add(a, b);
+    }
+    return (PyObject *)z;
+}
+{% endhighlight %}
+
+First we check that the two integers are 
+{% highlight c %}
+
+#define CHECK_BINOP(v,w)                                \
+    do {                                                \
+        if (!PyLong_Check(v) || !PyLong_Check(w))       \
+            Py_RETURN_NOTIMPLEMENTED;                   \
+    } while(0)
+{% endhighlight %}
+
+The function looks like checking if our two integers are valid. One curious thing you may have noticed is the : 
+
+{% highlight c %}
+
+do {
+	INSTR;
+} while(0)
+
+{% endhighlight %}
+
+Which seems exactly the same as simply : 
+
+{% highlight c %}
+INST;
+{% endhghlight %}
+
+The purpose of doing this is macros in C are not really smart, the _preprocessor_ does simply a find/replace. The proble with this can be explained with the following macro : 
+
+{% highlight c %}
+#define fct() \
+	INSTR1; \
+	INSTR2; \
+{% endhighlight %}
+
+But what happens if you do : 
+
+{% highlight c %}
+if(condition)
+	fct()
+else
+	INSTR3;
+{% endhighlight %}
+
+the preprocessor will replace this with : 
+
+{% highlight c %}
+if(condition)
+	INSTR1;
+INSTR2;
+else
+	INSTR;
+{% endhighlight %}
+
+which is not valid _C_, since in _C_ if you omit the accolades, the if body will only consists of the first instruction which is not what you would expect.
+
+The do while solve this by enclosing all our instructions in one scope.
+
+But why not just use : 
+
+{% highlight c %}
+
+{
+	INSTR1;
+	INSTR2;
+}
+
+{% endhighlight %}
+
+As far as i know this is simply a syntaxic choice, since writing `MACRO();` is more natural than `MACRO()` (not that in the second case we have no semicolon).
+
+The rest is pretty straightforward : 
+
+- if both a and b are negative we return -|a + b|
+- if a is negative but not b we compute b - a
+- if b is negative and a is positive we compute a - b
+- if both are positive we compute |a + b|
+
+This looks fairly complicated for a simple a + b, so why all the burden ?
+
+Well recall that in `Python` integers can be very large (recall 2^63 digits on 64 bits machines), this is achieved by storing the integers in arrays (each element representing a digit). 
+
+We dive in the `x_add` code we see : 
+
+{% highlight c %}
+for (i = 0; i < size_b; ++i) {
+        carry += a->ob_digit[i] + b->ob_digit[i];
+        z->ob_digit[i] = carry & PyLong_MASK;
+        carry >>= PyLong_SHIFT;
+    }
+    for (; i < size_a; ++i) {
+        carry += a->ob_digit[i];
+        z->ob_digit[i] = carry & PyLong_MASK;
+        carry >>= PyLong_SHIFT;
+    }
+    z->ob_digit[i] = carry;
+{% endhighlight c %}
+
+And that's it, the `long_sub` is fairly similar, and you can always (i encourage you to do so) check multiplication and division code.
+
+We rarely stop to think about basic operations like integer operations, the longobject file show how complicated and optimised long implementation is in python to maximaly optimise any use of it.
