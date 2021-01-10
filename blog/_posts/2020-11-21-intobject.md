@@ -3,9 +3,9 @@ layout: post
 title: 'Python Internals Serie : Int (Long) Object'
 ---
 
-In this article, we will read and discuss the implementation details of ints in _CPython_.
+In this article, we will read and discuss the implementation details of _int_s in _CPython_.
 
-Altough using ints in python is fairly easy : 
+Altough using integers in python is fairly easy : 
 
 {% highlight python %}
 
@@ -15,11 +15,11 @@ b = a + 5
 
 {% endhighlight %}
 
-The file implementing them in python is more than 5000 code lines.
+The implementation file contains more than 5000 code lines.
 
-Since the file contains roughly 116 functions/macros, I'll probably skip some (most of ?) of the functions.
+Since the file contains roughly 116 functions/macros, I'll probably skip some (most of ?) functions.
  
-Without further ado, let's dive in the code !
+Without further ado, let's dive into the code !
 
 ### longobject.c
 
@@ -28,6 +28,8 @@ First we need to find a starting point, we know that all pythons objects are sto
 Unfortunetly, we don't seem to have an `intobject.c` file. That's because the underlying C object for python integers is `PyLongObject`.
 
 The file we're interessted in is : `longobject.c`
+
+From now one I will refer to python's integers implementation both using _integers_ or _longs_, which is not technically accurate since in _C_ those are different types.
 
 For the rest of this article, we'll revisit some of the most used operations/functions related to integers.
 
@@ -41,7 +43,7 @@ For the rest of this article, we'll revisit some of the most used operations/fun
               (sdigit)(x)->ob_digit[0]))
 {% endhighlight %}
 
-The comment is pretty straightforward, the macro convert a given _long_ to an _sdigit_. But what's an sdigit ? Well it depends : 
+The comment is pretty explanatory, the macro convert a given _long_ to an _sdigit_. But what's an sdigit ? Well it depends : 
 
 {% highlight c %}
 #if PYLONG_BITS_IN_DIGIT == 30 /* signed variant of digit */
@@ -56,9 +58,9 @@ typedef short sdigit; /* signed variant of digit */
 
 The `PYLONG_BITS_IN_DIGIT` is defined either at configure time or in `pyport.h`.
 
-We have an assert to protect us from accidently casting a big integer to a sdigit, which may result in a loss of information, therefore potentiely issues which can be hard to fix.
+We have an assert to protect us from accidently casting a big integer, which is not small enough to fit in an sdigit, to an sdigit, which may result in a loss of information, therefore potentiely issues which can be hard to detect.
 
-Curiously, the assert check that the _size_ of x is bigger than -1, but can be less than 0 ? My guess is that size is unsigned to reflect the sign of the int, for exemple : `PY_SIZE(-15) = -2`.
+Curiously, the assert check that the _size_ of x is bigger than -1, but can be less than 0 ? My guess is that size is unsigned to represent both the size and the sign of the integer, for exemple : `PY_SIZE(-15) = -2`.
 This seems to be confirmed with `Py_SIZE(x) < 0 ? -(sdigit)(x)->ob_digit[0]`.
 
 `ob_digit` looks like an array containing our integer. which can be confirmed in the file `longintrepr.h` : 
@@ -70,8 +72,7 @@ struct _longobject {
 };
 {% endhighlight %}
 
-Im not sure why use an array of one element instead of just an integer `digit num`.
-
+One curious fact, that I can't explain, is the small size of the array (one element ?), maybe it's somehow changed at runtime.
 
 #### IS_SMALL_INT(ival)
 
@@ -90,7 +91,7 @@ Pretty straightforward function.
 #define _PY_NSMALLNEGINTS           5
 {% endhighlight %}
 
-To undesrtand why those 2 magic numbers and and where the two macros are used, let's dive into the next function.
+To undesrtand why those 2 magic numbers and where this macro is used, let's dive into the next function.
 	
 #### static PyObject * get_small_int(sdigit ival)
 {% highlight c %}
@@ -125,7 +126,7 @@ According to [https://tenthousandmeters.com/blog/python-behind-the-scenes-1-how-
 
 Apparently flyweight integers are stored there.
 
-We also use `Py_INCREF` to increment the reference count of the returned integer, recall that reference counting is what is used by the CPython garbage collector to detect which objects to free (Well not just that, since reference counting alone doesn't resolve circular references).
+We also use `Py_INCREF` to increment the reference count of the returned integer, recall that reference counting is what is used by the CPython garbage collector to detect which objects to free (Well not just that, since reference counting alone doesn't resolve circular references, but we'll discuss the _gc_ in more details in future articles).
 
 #### maybe_small_long
 
@@ -150,7 +151,7 @@ Well, looks like we can't have an indefinely big integer, but how big can our in
     ((PY_SSIZE_T_MAX - offsetof(PyLongObject, ob_digit))/sizeof(digit))
 {% endhighlight %}
 
-if you don't already know it, offsetof is basicaly an offset of the member (ob_digit) from the structure (PyLongObject), if you recall correctly, since our struture only contains `PyObject_VAR_HEAD` and 	`digit ob_digit`. so the offset is the memorry taken with VAR_HEAD.
+If you don't already know it, _offsetof_ is a _C_ function wich will basicaly return an offset of the member (ob_digit) from the structure (PyLongObject), if you recall correctly, since our struture only contains `PyObject_VAR_HEAD` and 	`digit ob_digit`. so the offset is the memorry taken with VAR_HEAD.
 
 So a integer has a maximal size of roughly Py_SSIZE_T_MAx.
 
@@ -176,7 +177,7 @@ if (!result) {
 }
 {% endhighlight %}
 
-As a good practice you should ALWAYS check that an allocation had correctly been pperformed (which may not me the case if you don't have enough memory for example).
+As a good practice you should ALWAYS check that an allocation had correctly been performed, which may not be the case if you don't have enough memory for example, your futur self will thank you.
 
 ### Adding two integers
 
@@ -217,7 +218,7 @@ long_add(PyLongObject *a, PyLongObject *b)
 }
 {% endhighlight %}
 
-First we check that the two integers are 
+First we check that the two integers are valid.
 {% highlight c %}
 
 #define CHECK_BINOP(v,w)                                \
@@ -227,7 +228,7 @@ First we check that the two integers are
     } while(0)
 {% endhighlight %}
 
-The function looks like checking if our two integers are valid. One curious thing you may have noticed is the : 
+One curious thing you may have noticed is the : 
 
 {% highlight c %}
 
@@ -241,9 +242,9 @@ Which seems exactly the same as simply :
 
 {% highlight c %}
 INST;
-{% endhghlight %}
+{% endhighlight %}
 
-The purpose of doing this is macros in C are not really smart, the _preprocessor_ does simply a find/replace. The proble with this can be explained with the following macro : 
+The purpose of doing this is macros in C are not really smart, the _preprocessor_ will simply do a find/replace and hope for the best. The problem with this can be illustrated with the following macro : 
 
 {% highlight c %}
 #define fct() \
@@ -270,7 +271,7 @@ else
 	INSTR;
 {% endhighlight %}
 
-which is not valid _C_, since in _C_ if you omit the accolades, the if body will only consists of the first instruction which is not what you would expect.
+which is not valid _C_, since in _C_ if you omit the braces, the if body will only consists of the first instruction which is not what you would expect.
 
 The do while solve this by enclosing all our instructions in one scope.
 
@@ -287,16 +288,16 @@ But why not just use :
 
 As far as i know this is simply a syntaxic choice, since writing `MACRO();` is more natural than `MACRO()` (not that in the second case we have no semicolon).
 
-The rest is pretty straightforward : 
+The rest is : 
 
-- if both a and b are negative we return -|a + b|
+- if both a and b are negative we return -\|a + b\|
 - if a is negative but not b we compute b - a
 - if b is negative and a is positive we compute a - b
-- if both are positive we compute |a + b|
+- if both are positive we compute \|a + b\|
 
 This looks fairly complicated for a simple a + b, so why all the burden ?
 
-Well recall that in `Python` integers can be very large (recall 2^63 digits on 64 bits machines), this is achieved by storing the integers in arrays (each element representing a digit). 
+Well recall that in `Python` integers can be very large (2^63 digits on 64 bits machines), this is achieved by storing the integers in arrays (each element representing a digit). 
 
 We dive in the `x_add` code we see : 
 
@@ -314,6 +315,7 @@ for (i = 0; i < size_b; ++i) {
     z->ob_digit[i] = carry;
 {% endhighlight c %}
 
+## Conclusion
 And that's it, the `long_sub` is fairly similar, and you can always (i encourage you to do so) check multiplication and division code.
 
-We rarely stop to think about basic operations like integer operations, the longobject file show how complicated and optimised long implementation is in python to maximaly optimise any use of it.
+We rarely stop to think about basic operations like integer operations, the longobject file shows use how complex and optimised long/integers implementation is in python.
