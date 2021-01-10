@@ -3,7 +3,7 @@ layout: post
 title: 'Python Internals Serie : Int (Long) Object'
 ---
 
-In this article, we will read and discuss the implementation details of _int_s in _CPython_.
+In this article, we will read and discuss the implementation details of _ints_ in _CPython_.
 
 Altough using integers in python is fairly easy : 
 
