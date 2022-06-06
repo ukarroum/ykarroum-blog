@@ -3,33 +3,32 @@ layout: post
 title: 'The true cost of linked lists'
 ---
 
-Linked lists are often overused in introductory algorithmics courses, due to a heavy focus on theorical complexities. Unfortunatly in practice, computers are complex beasts. They don't execute instructions sequentialy [^1] with the same cost [^2]. This mean that a data structures with faster theorical complexities does not necessary translate to a more efficient data structure in practice.
+Linked lists are often overused in introductory algorithmics courses, due to a heavy focus on theorical complexities. Unfortunatly, in practice, computers are complex beasts. They don't execute instructions sequentially [^1] with the same cost [^2]. This means that a data structure with faster theorical complexities does not necessarily translate to a more efficient data structure in practice.
 
-In this article we'll illutrate this by comparing the real performances of linked lists versus a contigous vector, and we'll show that even for some use cases where the list seem to be favored the vector is still a better choice. Of course this doesn't mean you should never use a linked list, but that you should be aware of its practical limitations and more informed when making the decision to use it or not.
+In this article I'll illutrate this by comparing the real performances of linked lists versus a contiguous vector, and I'll show that even in some use cases where the list seems to be favored the vector is still a better choice. Of course, this doesn't mean you should never use a linked list, but that you should be aware of its practical limitations and more informed when making the decision to use it or not.
 
-Altough linked list are not specific to a particluar language, the following article we'll focus on C++ STL's list vs C++ STL's vector.
+Although linked lists are not specific to a particular language, the following article we'll focus on C++ STL's `list` vs. C++ STL's `vector`.
 
-All the examples and measurements are run on the following platform:
+All the examples and measurements were ran on the following platform:
 
+* Ubuntu 20.04 (Linux 5.13.0-44-generic).
 * Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz
-* C++14
-* clang version 12.0.0-3ubuntu1~20.04.5
+* C++ 14
+* Clang 12
 
-TLDR;
-
-Linked lists rely havilly on comminucating with DRAM, in pseudo-random fashion (that the hardware prefetcher struggle to predict), memorry latency is slow this trasnaltes to a slower structure overall.
+We'll also use _google's benchmark_ [^5] to make the measurements.
 
 Finding (the last) element
 --------------------------
 
-Let's start with a simple scenario, we want to find an element in our data structure. We'll focus on the worst case when the element is at the end of the containers.
+Let's start with a simple scenario: Finding an element in our data structure. We'll focus on the worst case, when the element is at the end of the container.
 
 The theorical complexities are:
 
 * For list: O(n)
 * For vector: O(n)
 
-You may then expect the measurement to give us a similar value.
+You may expect the measurement to give us a similar value.
 
 We'll measure using the following code:
 
@@ -115,16 +114,16 @@ BM_VectorFind/8192      43581 ns        43578 ns        16272
 
 {% endhighlight %}
 
-Suprisignly enough, the vector version is almost 90 times faster than the list version for 8K.
+Surprisingly enough, the vector version is almost 90 times faster than the list version for 8K.
 
-How can we explain this big difference ?
+How can we explain this big difference?
 
 Let me introduce _spatial locality_ and _cache_.
 
 Caches and locality
 -------------------
 
-When you run a program (like our benchmarking example), you usually communicate (a lot) with the main memorry. Altough computer cpus speed has improved a lot in the recent years, memory latencies did not. A typical memorry access has a 100 ns latency [^3]. To improve overall performances, all modern cpus now have multiple levels of caches. The cache is a blazingly fast, but very small, memorry. On intel's cpus you usually have 3 levels of cache (L1 -> L3), L1 being the fastest and smallest, and L3 (also commonly called LLC) being the slowest and biggest.
+When you run a program (like our benchmarking example), you usually communicate (a lot) with the main memory. Although computers CPUs speed has improved a lot in the recent years, memory latencies did not. A typical memory access has a 100 ns latency [^3]. To improve overall performances, all modern CPUs now have multiple levels of caches. The cache is a blazingly fast, but very small, memory. On intel's cpus you usually have 3 levels of cache (L1 -> L3), L1 being the fastest and smallest, and L3 (also commonly called LLC) being the slowest and biggest.
 
 According to [^3], the latencies are:
 
@@ -132,7 +131,7 @@ According to [^3], the latencies are:
 * L2: 7 ns.
 * Main Memorry (DRAM): 100 ns.
 
-To show the caches size in your computer you can use:
+To show the cache's size for your computer, you can use:
 
 {% highlight bash %}
 
@@ -146,36 +145,36 @@ L3 cache:                        8 MiB
 
 You can see that I have two types of L1 cache: _L1d_ for _data_ and _L1i_ for _instructions_.
 
-To decide which data to keep in the cache, the cpu will use what we call _locality_. We have two types of locality: _spatial_ and _temporal_.
+The CPU will keep data based on _locality_. We have two types of locality: _spatial_ and _temporal_.
 
-_Spatial locality_ means that when you access a particular adress in memorry, you'll probably need the content of the adresses close to it.
+_Spatial locality_: When you access an address in memory, you'll probably need the content of the addresses closest to it.
 
-_Temporal locality_ means that when you access a particular adress in memorry, you'll probably need the same value in the near future.
+_Temporal locality_: When you access an address in memory, you'll probably need the same value in the near future.
 
 But what does any of this have with our initial problem ?
 
-Well the memorry layout of the vector heavily benefit from the spatial locality, this is what happens in our benchmarking example:
+Well the memory layout of the vector heavily benefit from the spatial locality, this is what happens in our benchmarking example:
 
-* Retrieve the first element content from memorry (cost ~100 ns).
-* The cpu expect you to use the near adresses contents, he'll then retrieve a whole cache line from memorry (64 bytes, or 16 ints on my computer).
-* The next teration we try to access the content of the second element, since the values are contigous in memorry the value is in cache (cost ~7ns).
+* We Retrieve the first element value from memory (cost ~100 ns).
+* The CPU expects us to use the near addresses' contents, he'll then retrieve a whole cache line from memory (64 bytes, or 16 ints on my computer).
+* The next iteration, we try to access the content of the second element, since the values are contiguous in memory the value is in cache (cost ~7ns).
 
 For the linked list, things are a little different:
 
-* Retrieve the first element content from memorry (cost ~100 ns).
-* The cpu expect you to use the near adresses contents, he'll then retrieve a whole cache line from memorry (again 64 bytes).
-* Then you fetch the next pointer, and the next adress is not necessarly the one next to the last one (cost 7ns to 100ns, in practice probably 100ns).
+* We Retrieve the first element content from memory (cost ~100 ns).
+* The CPU expects us to use the near addresses' contents, he'll then retrieve a whole cache line from memory (again 64 bytes).
+* Then we fetch the next pointer, the next address is not necessarily the one next to the last one (cost 7ns to 100ns, in practice probably 100ns).
 
 This is why I added the `tmp_list`, inserting all the elements at once will just put all the elements next to each other, which is not a realistic scenario.
 
-When the cpu have to fetch from main memorry instead of cache, we say that the cpu did a _cache miss_.
+When the CPU has to fetch from main memory instead of the cache, we say that the CPU did a _cache miss_.
 
 Counting cache misses
 ---------------------
 
-We can count the number of cache misses using `jevents` of `pmu_tools` [^4].
+We can count the number of cache misses using `jevents` from `pmu_tools` [^4].
 
-I'll explain how the PMC/PMU work in a future article. For now you just need to understand that the cpu have a bunch of "counters" that we can use to count specific events, in our case the cache misses event.
+I'll explain in a future article how the PMU/PMC works. For now you just need to understand that the CPU has a bunch of "counters" that we can use to count specific events, in our case the cache misses event.
 
 We can use the following code:
 
@@ -224,14 +223,14 @@ BM_VectorFind/8192      45021 ns         15576        1.29173
 {% endhighlight %}
 
 You may find it odd that we have less than one cache miss for some rows, I mean we should at least need to access DRAM once right ?
-This is due to having a lot of iterations in google benchmarks, first iterations will put the data in cache (precisly L2 and L3 that are big enough to keep it) and latter iterations will just use those low level caches. We can remove this effect by increasing the number of elements inserted in `tmp_list`.
+This is due google benchmarks running multiple iterations, first iteration will put the data in cache (precisly L2 and L3 that are big enough to keep it) and latter iterations will just use those low level caches. We can remove this effect by increasing the number of elements inserted in `tmp_list`.
 
 As you can see for 8K we make, in average 941 cache misses.
 
-A linked list on contigous memorry
+A linked list on contiguous memorry
 ---------------------------
 
-We can now remove the `tmp_list` to have a more "cache friendly" linked list:
+We can now remove the `tmp_list` to have a linked list on contiguous memory, although in practice you'll rarely use a list for a similar use case:
 
 {% highlight cpp %}
 #include <benchmark/benchmark.h>
@@ -307,7 +306,7 @@ BM_VectorFind/8192      44067 ns        44072 ns        16161
 
 The _vector_ version is _only_ 7 times faster.
 
-This can be explained by the size of the list node (32 bytes), a cache line can only hold 2 nodes while it can hold 16 integers.
+The remaining difference can be explained by the size of the list node (32 bytes), a cache line can only hold 2 nodes while it can hold 16 integers.
 
 We can count the number of cache misses:
 
@@ -336,7 +335,7 @@ There is also the factor that by constructing the list once, we only do one _mal
 What about inserting in the middle of the list ?
 ------------------------------------------------
 
-We measured the slowness factor in the use case where both data structures have the same theorical complexity, but what about when the list is suposed to clearly win ? Let see what hapens if we try to insert in the middle of the data structure.
+We measured the performance differences in the use case where both data structures have the same theoretical complexity, but what about when the list is supposed to clearly win ? Let see what happens if we try to insert in the middle of the data structure.
 
 We can measure using the following code:
 
@@ -446,17 +445,17 @@ BM_VectorInsert/8192/8192    5907307 ns      5906365 ns          113
 
 {% endhighlight %}
 
-As you can see the _vectot_ is still faster on a lot of sizes, the _list_ data structures only become faster when we start inserting 4k elements !
-Why ? Well each time we insert we pay a malloc, and _malloc_ can be really costy.
+As you can see the _vector_ is still faster on a lot of sizes, the _list_ data structures only become faster when we start inserting 4k elements!
+Why? Well each time we insert we pay a malloc, and _malloc_ can be really costly.
 
-In college we tend to focus on the cost of moving the whole vector just to insert one element, but in practice (unless you're doing it too often), the _mallocs_ cost will still be greater.
+People tend to focus on the cost of moving the whole vector just to insert one element, but in practice (unless you're doing it too often), the _mallocs_ cost will still be greater.
 
 Conclution
 ----------
 
-Should we then stop using linked lists ? No, there are use cases where list will outperform a vector (as we saw earlier if you have a loot of insertions), but the point of this article is to show that we need to be more careful and informed before using it, and one single insert in the middle of the list don't justify the cost. It's important to measure and to understand that theorical model we use don't take into considerations things like cache costs and mallocs costs.
+Should we then stop using linked lists? No, there are still use cases where _list_ will outperform a vector (as we saw earlier if you have a lot of insertions), but the point of this article is to show that we need to be more careful and informed before committing to using it, and one single insert in the middle of the list doesn't justify the cost. It's important to measure and to understand that theoretical model may not take into consideration things like cache costs and mallocs costs.
 
-The same reasoning can be used on other structures like trees (std::map and std::set are usually implemented using a red black tree).
+The same reasoning can be used on other data structures as well, like trees (std::map and std::set are usually implemented using a red black tree).
 
 Footnotes
 ---------
@@ -465,3 +464,4 @@ Footnotes
 [^2]: A typical load from memory is around 100 slower than a simple `ADD`.
 [^3]: [http://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf](http://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf) (2009)
 [^4]: [https://github.com/andikleen/pmu-tools/tree/master/jevents](https://github.com/andikleen/pmu-tools/tree/master/jevents) 
+[^5]: [https://github.com/google/benchmark](https://github.com/google/benchmark)
