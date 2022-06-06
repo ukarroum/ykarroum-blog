@@ -1,7 +1,7 @@
 # Setup
 title:               YKarroum
-tagline:             'A blog about python, finance and other stuffs'
-description:         '<img style="border-radius: 50%" src="/public/img/yassir_small.jpg" /> Just another random blog, where a software engineer talks about python, finance, developpement and other things.'
+#tagline:             'Another personal blog'
+description:         '<img style="border-radius: 50%" src="/public/img/yassir_small.jpg" /> Just another personal blog, where I write about python, c++ and other stuff.'
 url:                 http://ykarroum.com
 baseurl:             ''
 paginate:            5
