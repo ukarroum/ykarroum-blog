@@ -3,10 +3,7 @@ layout: post
 title: 'Building automatic inplace in python'
 ---
 
-The inplace parameter
----------------------
-
-When using data related python libraries (pandas, numpy, etc.) a lot of the functions accept an inplace parameter. By setting it to `True` we change the source object without creating any additional copy, in some cases this can have a significant memory impact.
+When using data related python libraries (pandas, numpy, etc.) a lot of the functions accept an inplace parameter. By setting it to `True`, we change the source object without creating an additional copy, in some cases this can have a significant memory impact.
 
 In this article I'll show that we can automatically detect some patterns where using `inplace=True` has no downsides:
 
@@ -19,7 +16,7 @@ df = my_fct(df) # should set inplace=True
 
 To do this we need to solve two main issues:
 
-First, we need to be sure that we have no other references to the given argument, example:
+First, we need to be sure that we have no other references on the source object, for example:
 
 This is a valid use case.
 
@@ -31,7 +28,7 @@ df = my_fct(df)
 
 {% endhighlight %}
 
-This is not, as we'll end up also changing other_df, which may not be intended by the user.
+This is not. As we'll end up also changing `other_df`, which may not be intended by the user.
 
 {% highlight pyhon %}
 
@@ -43,7 +40,7 @@ df = my_fct(df)
 
 {% endhighlight %}
 
-Second we need to make sure that the same variable we get as a parameter is used as a target, example:
+Second, we need to make sure that the same variable we get as a parameter is used as a target, example:
 
 This is valid.
 
@@ -51,13 +48,13 @@ This is valid.
 df = my_fct(df)
 {% endhighlight %}
 
-This is not, as the changes in the source df are not be expected.
+This is not, as the changes to the source df are not expected.
 
 {% highlight python %}
 other_df = my_fct(df)
 {% endhighlight %}
 
-in the following we'll use the following function as an example:
+In the following, we'll use the following function as an example:
 
 {% highlight python %}
 def f(l: list[float], inplace: bool = False) -> list[float]:
@@ -77,9 +74,9 @@ def f(l: list[float], inplace: bool = False) -> list[float]:
 References counting
 -------------------
 
-To make sure that we don't accidently change another object by automatically setting `inplace=True`, we need to use reference counting.
+To make sure that we don't accidentally change another object by automatically setting `inplace=True`, we need to use reference counting.
 
-Basically we should only have 2 references to our source object:
+Basically, we should only have 2 references to our source object:
 
 {% highlight python %}
 
@@ -94,12 +91,12 @@ l = f(l) # <----- one here
 
 To count the references we can use : `sys.getrefcount(l)`.
 
-If you do this we may be surprised by the value: `4`.
+If you try this, you may be surprised that the value is `4` not `2`.
 
-This is due to `sys.getrefcount` also creating a reference on its argument.
-The second additional ref count is explained here: [https://stackoverflow.com/a/46146772](https://stackoverflow.com/a/46146772), which looks like it's caused by the new way _CPython_ handle argument passing starting _3.6_.
+This is due to `sys.getrefcount` also creating a reference to its argument.
+The second additional ref count is explained here: [https://stackoverflow.com/a/46146772](https://stackoverflow.com/a/46146772), which looks like an implementation detail in the new way _CPython_ handles arguments passing starting _3.6_.
 
-of code now is:
+Our code now is:
 
 {% highlight python %}
 def f(l, inplace=True):
@@ -118,7 +115,7 @@ To solve the second issue, we'll:
 
 * Retrieve information on the outer frame, since we're already in the function the outer frame will refer to the one from which we call the function.
 * Retrieve the code portion referring to the function call.
-* Using the code to build a small ast, to check that the first argument of the call has the same name as the targer.
+* Using the code to build a small ast, to check that the first argument of the call has the same name as the target.
 
 To retrieve the outer frame we can use the `inspect` module:
 
@@ -128,7 +125,7 @@ frame = inspect.getouterframes(inspect.currentframe())[1]
 
 We can get the code using `frame.code_context`.
 
-Once we have the code, we can use the `ast` module to check if we're in the valid use case:
+Once we have the code, we can use the `ast` module to check if we're on the valid use case:
 
 {% highlight python %}
 
@@ -137,7 +134,7 @@ exprs = ast.parse(code_context[0].strip()).body
 
 # We check that it's an assignement
 if len(exprs) == 1 and isinstance(exprs[0], ast.Assign):
-# We chekc that user is affecting the return value somewhere
+# We check that user is affecting the return value somewhere
 # We also check that the second operand is a function call
 if len(exprs[0].targets) == 1 and isinstance(exprs[0].value, ast.Call):
     lname = exprs[0].targets[0].id
@@ -189,8 +186,18 @@ Limitations
 -----------
 
 There are some limitations with the presented approach:
-* Must be first argument.
-* Must return one argument
-* code_context only return one line, maybe not enough info
+
+Our decorator expects the source object to be the first argument, and expect the function to return exactly one value. This is the most common, but we can easily extend our decorator to more usages by adding parameters.
+
+The second limitation is that the `frame.code_context` will only return one line of the code, this may not sound like an issue but it will make it hard to detect use cases like this one:
+
+{% highlight python %}
+df = f(
+	df
+)
+{% endhighlight %}
+
+This is a little trickier to solve and may cause some missed auto inplace opportunities.
+
 
 
