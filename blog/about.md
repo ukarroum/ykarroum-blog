@@ -3,7 +3,7 @@ layout: page
 title: About
 ---
 
-My name is Yassir Karroum, I am a quantitative developer at *BNP Paribas CIB*, in _Paris_.
+My name is Yassir Karroum, I am a quantitative developer at *Millennium*, in _Paris_.
 
 My day to day job involves coding in Python and C++.
 
