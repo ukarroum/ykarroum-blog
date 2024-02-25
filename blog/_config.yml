@@ -2,7 +2,7 @@
 title:               YKarroum
 #tagline:             'Another personal blog'
 description:         '<img style="border-radius: 50%" src="/public/img/yassir_small.jpg" /> Just another personal blog, where I write about python, c++ and other stuff.'
-url:                 http://ykarroum.com
+url:                 https://ykarroum.com
 baseurl:             ''
 paginate:            5
 permalink:           pretty
@@ -10,7 +10,7 @@ permalink:           pretty
 # About/contact
 author:
   name:              Yassir Karroum
-  url:               http://ykarroum.com
+  url:               https://ykarroum.com
   email:             ukarroum17@gmail.com
 
 # Gems
